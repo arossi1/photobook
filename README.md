@@ -3,8 +3,8 @@
 PhotoBook is a collection of components that catalogs / indexes unorganized directories of images to a database and exposes an interface for viewing, exploitation, and administration.  The back-end is written in Python, with a HTML/Javascript front-end UI.
 
 Dependencies:
-- Python 2.7
-- peewee
+- Python 3.7
+- sqlalchemy
 
 The indexer has the following features:
 - create Catalog (name, description, path)
