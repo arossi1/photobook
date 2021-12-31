@@ -2,12 +2,9 @@ import logging
 
 from sqlalchemy import Column, Date, Integer, String
 from sqlalchemy import create_engine, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
-
-Base = declarative_base()
-engine = None
 
 
 ################################################################################
@@ -66,6 +63,17 @@ class FileAttributes(Base):
                f"file: {self.file}" + \
                f"size: {self.size}"
 
+
+
+class Db:
+    Engine = None
+    Session = None
+
+    @staticmethod
+    def initialize(dbPath):
+        Db.Engine = create_engine('sqlite:///' + dbPath)
+        Db.Session = sessionmaker(Db.Engine)
+
 def createDatabase(dbPath):
-    engine = create_engine('sqlite:///' + dbPath)
-    Base.metadata.create_all(engine)
+    Db.initialize(dbPath)
+    Base.metadata.create_all(Db.Engine)

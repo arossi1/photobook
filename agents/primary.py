@@ -1,12 +1,11 @@
-
+import photobook.db.Tables as Tables
 
 
     @staticmethod
     def add(fullPath : str):
         logging.info(f"adding: {fullPath}")
 
-        Session = sessionmaker(engine)
-        with Session() as session:
+        with Tables.Session() as session:
             p = Path.findRoot(fullPath)
             rel_path = fullPath.replace(p.windows, "")
             im = Image(rel_path, os.stat(fullPath).st_size, p)
