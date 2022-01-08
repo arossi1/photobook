@@ -21,6 +21,7 @@ if __name__=="__main__":
         Tables.Db.initialize(sys.argv[1])
         ROOT = sys.argv[2]
         LIMIT = int(sys.argv[3])
+        checkExist = int(sys.argv[4]) == 1
 
         EXTENSIONS = (".jpg", ".jpeg", ".tif", ".tiff", ".png")
         cnt = 0
@@ -32,19 +33,24 @@ if __name__=="__main__":
                 for fn in filenames:
                     if os.path.splitext(fn)[1].lower() in EXTENSIONS:
                         p = os.path.join(dirpath, fn)
-                        # x = select(Tables.File.__table__).where(Tables.File.path == p).one()
-                        x = session.execute(
-                            select(Tables.File.id).
-                            where(Tables.File.path==p)
-                            ).all()
 
-                        if len(x)<=0:
+                        addP = True
+                        if checkExist:
+                            # x = select(Tables.File.__table__).where(Tables.File.path == p).one()
+                            x = session.execute(
+                                select(Tables.File.id).
+                                where(Tables.File.path==p)
+                                ).all()
+
+                            if len(x)>0:
+                                addP = False
+                                logger.info(f"already in db: {p}")
+
+                        if addP:
                             f = Tables.File(p)
                             session.add(f)
                             cnt += 1
                             dircnt += 1
-                        else:
-                            logger.info(f"already in db: {p}")
 
                         if shouldBreak(cnt, LIMIT): break
                     if shouldBreak(cnt, LIMIT): break
