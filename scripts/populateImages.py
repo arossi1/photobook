@@ -26,9 +26,9 @@ if __name__=="__main__":
                         ).all()
 
                     if len(x)<=0:
-                        f = Tables.File(p, os.stat(p).st_size)
+                        f = Tables.File(p)
                         session.add(f)
-                        cnt +=1
+                        cnt += 1
                     # else:
                     #     print(f"already in db: {p}")
                     if cnt>LIMIT: break

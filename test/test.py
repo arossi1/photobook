@@ -8,7 +8,7 @@ import sqlalchemy
 
 
 
-from sqlalchemy.orm import sessionmaker
+
 
 # from base import Session #, Base
 
@@ -48,34 +48,36 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 if __name__=="__main__":   
 
-    if True:
-        Session = sessionmaker(engine)
-        with Session() as session:
+    # if True:
+    #     Session = sessionmaker(engine)
+    #     with Session() as session:
 
-            p1 = Path(r"\\zeus\pictures", "/raid/pictures")
-            session.add(p1)
-            session.commit()
+    #         p1 = Path(r"\\zeus\pictures", "/raid/pictures")
+    #         session.add(p1)
+    #         session.commit()
 
-    Session = sessionmaker(engine)
-    with Session() as session:
-        for x in session.query(Path).all():
-            print(x)
+    # Session = sessionmaker(engine)
+    # with Session() as session:
+    #     for x in session.query(Path).all():
+    #         print(x)
 
+
+import random
+while True:
+
+    o1 = random.randint(0,100)
+    o2 = random.randint(0,100)
+    op = random.choice(("+", "-"))
+    q = f"{o1} {op} {o2}"
+    ans = eval(q)
+
+    sol = int(input(f"what is {q} = "))
+
+    if sol == ans:
+        print("You are correct!\n")
+    else:
+        print(f"Incorrect!  {q} = {ans}\n")
     
-
-    ROOT = r"\\zeus\pictures\Jamie's Photos\iPhone\Pics Backup 2015.07.21\DCIM"
-    EXTENSIONS = (".jpg", ".jpeg", ".tif")
-    cnt = 0
-    for dirpath,dirnames,filenames in os.walk(ROOT):    
-        for fn in filenames:
-            if os.path.splitext(fn)[1].lower() in EXTENSIONS:
-                p = os.path.join(dirpath, fn)
-                Image.add(p)
-                cnt +=1
-
-                if cnt>10: break
-            if cnt>10: break
-        if cnt>10: break
 
 
     # with open(p,"rb") as f:
