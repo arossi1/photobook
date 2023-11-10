@@ -1,30 +1,76 @@
 import photobook.db.Tables as Tables
 from sqlalchemy import select
 from sqlalchemy import exists
+
+from PIL import Image
+from PIL.ExifTags import TAGS
+import numpy as np
+import pyheif
+
 import sys, datetime, logging
 import hashlib
-from PIL import Image
-import numpy as np
 
-from PIL.ExifTags import TAGS
+from tqdm import tqdm
 
-def getExifData(imagePath):
+logger = logging.getLogger("populateImageAttributes")
+
+def parseExifData(exifdata):    
     ed = {}
-    with Image.open(imagePath) as im:
-        exifdata = im.getexif()
-        for tag_id in exifdata:
-            tag = TAGS.get(tag_id, tag_id)
-            data = exifdata.get(tag_id)
+    for tag_id in exifdata:
+        tag = TAGS.get(tag_id, tag_id)
+        data = exifdata.get(tag_id)
+        try:
             if isinstance(data, bytes):
                 data = data.decode()
             ed[tag] = data
+        except:
+            pass
     return ed
 
+
 def getImageAttributes(imagePath):
-    with Image.open(imagePath) as im:
-        a = np.asarray(im)
-        return (im.width, im.height, len(im.getbands()), 
-                hashlib.md5(a.data.tobytes()).hexdigest())
+
+    # https://github.com/carsales/pyheif
+    if imagePath.lower().endswith(".heic"):
+        heif_file = pyheif.read(imagePath)
+
+        ret = [heif_file.size[0], heif_file.size[1], len(heif_file.mode), None]
+
+        mdTypes = dict((md["type"].lower(),md["data"]) for md in heif_file.metadata)
+        if "exif" not in mdTypes:
+            logger.info(f"Exif metadata not found for: {imagePath}")
+            
+        exifData = Image.Exif()
+        exifData.load(mdTypes["exif"])
+
+        # im = Image.frombytes(
+        #     heif_file.mode,
+        #     heif_file.size,
+        #     heif_file.data,
+        #     "raw",
+        #     heif_file.mode,
+        #     heif_file.stride)
+
+        # a = np.asarray(im)
+    
+    else:
+        with Image.open(imagePath) as im:      
+            ret = [im.size[0], im.size[1], len(im.mode), None]
+            exifData = im.getexif()
+            # a = np.asarray(im)
+    
+    exifData = parseExifData(exifData)
+
+    dtTaken = None
+    if "DateTime" in exifData:
+        dtTaken = datetime.datetime.strptime(exifData["DateTime"], "%Y:%m:%d %H:%M:%S")
+    ret.append(dtTaken)
+
+    return ret
+
+    # return (a.shape[1], a.shape[0], a.shape[2], 
+    #         hashlib.md5(a.data.tobytes()).hexdigest())
+
 
 if __name__=="__main__":
 
@@ -34,11 +80,8 @@ if __name__=="__main__":
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
                         handlers = [fileHandler, streamHandler])
-    logger = logging.getLogger("populateImageAttributes")
 
     try:
-        cnt = 0
-
         Tables.Db.initialize(sys.argv[1])
         LIMIT = int(sys.argv[2])
 
@@ -47,24 +90,24 @@ if __name__=="__main__":
                             ~exists().
                             where(Tables.File.id == Tables.ImageAttributes.file_id)
                             ).all()
-            for fileRow in q:
-                logger.debug(fileRow.path)
+            for cnt,fileRow in enumerate(tqdm(q)):
+                try:
+                    ia = getImageAttributes(fileRow.path)
+                except Exception as e:
+                    logging.exception(f"Failed getting image attributes for: {fileRow.path}", e)
 
-                exifData = getExifData(fileRow.path)
-                dtTaken = None
-                if "DateTime" in exifData:
-                    dtTaken = datetime.datetime.strptime(exifData["DateTime"], "%Y:%m:%d %H:%M:%S")
+                session.add(Tables.ImageAttributes(fileRow, *ia))
 
-                session.add(
-                    Tables.ImageAttributes(
-                        fileRow,
-                        *getImageAttributes(fileRow.path),
-                        dtTaken))
-                cnt += 1
-                if cnt%250==0: logger.info(f"processed {cnt} images")
+                #if cnt%250==0: logger.info(f"processed {cnt} images")
                 if LIMIT>0 and cnt>=LIMIT: break
+                
+                if cnt%1000==0:
+                    #logging.info("Commiting updates")
+                    session.commit()
+
             session.commit()
 
     except Exception as e:
         logger.critical(e, exc_info=True)
+        logger.critical(fileRow.path)
         raise e

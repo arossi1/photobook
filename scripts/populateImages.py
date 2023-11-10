@@ -10,7 +10,7 @@ if __name__=="__main__":
 
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(message)s',
-                        handlers = [fileHandler, streamHandler])
+                        handlers = [fileHandler]) #, streamHandler])
     logger = logging.getLogger("populateImages")
 
     def shouldBreak(cnt, limit):
@@ -23,7 +23,7 @@ if __name__=="__main__":
         LIMIT = int(sys.argv[3])
         checkExist = int(sys.argv[4]) == 1
 
-        EXTENSIONS = (".jpg", ".jpeg", ".tif", ".tiff", ".png")
+        EXTENSIONS = (".jpg", ".jpeg", ".tif", ".tiff", ".png", ".heic")
         cnt = 0
 
         for dirpath,dirnames,filenames in os.walk(ROOT):

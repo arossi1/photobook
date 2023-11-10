@@ -67,9 +67,9 @@ class FileAttributes(Base):
 
     def __repr__(self):
         return f"id: {self.id}\n" + \
-               f"file: {self.file}" + \
-               f"size: {self.size}" + \
-               f"modified_date_time: {self.modified_date_time}" + \
+               f"file: {self.file}\n" + \
+               f"size: {self.size}\n" + \
+               f"modified_date_time: {self.modified_date_time}\n" + \
                f"hash: {self.hash_val}"
 
 
@@ -104,11 +104,11 @@ class ImageAttributes(Base):
 
     def __repr__(self):
         return f"id: {self.id}\n" + \
-               f"file: {self.file}" + \
-               f"width: {self.width}" + \
-               f"height: {self.height}" + \
-               f"bands: {self.bands}" + \
-               f"hash_val: {self.hash_val}" + \
+               f"file: {self.file}\n" + \
+               f"width: {self.width}\n" + \
+               f"height: {self.height}\n" + \
+               f"bands: {self.bands}\n" + \
+               f"hash_val: {self.hash_val}\n" + \
                f"date_time: {self.date_time}"  
 
 
