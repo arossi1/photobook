@@ -27,7 +27,6 @@ if __name__=="__main__":
                             where(Tables.File.id == Tables.FileAttributes.file_id)
                             ).all()
             for fileRow in tqdm(q):
-                #logger.debug(fileRow.path)
                 hashval = None
                 # with open(fileRow.path, "rb") as f:
                 #     hashval = hashlib.md5(f.read()).hexdigest()
@@ -39,13 +38,11 @@ if __name__=="__main__":
                 cnt += 1
                 
                 if cnt%1000==0:
-                    #logger.info(f"processed {cnt} files")
                     session.commit()
 
                 if LIMIT>0 and cnt>=LIMIT:
                     break
 
-            #logger.info(f"processed {cnt} files")
             session.commit()
 
     except Exception as e:
