@@ -93,16 +93,13 @@ if __name__=="__main__":
             for cnt,fileRow in enumerate(tqdm(q)):
                 try:
                     ia = getImageAttributes(fileRow.path)
+                    session.add(Tables.ImageAttributes(fileRow, *ia))
                 except Exception as e:
                     logging.exception(f"Failed getting image attributes for: {fileRow.path}", e)
 
-                session.add(Tables.ImageAttributes(fileRow, *ia))
-
-                #if cnt%250==0: logger.info(f"processed {cnt} images")
                 if LIMIT>0 and cnt>=LIMIT: break
                 
                 if cnt%1000==0:
-                    #logging.info("Commiting updates")
                     session.commit()
 
             session.commit()
