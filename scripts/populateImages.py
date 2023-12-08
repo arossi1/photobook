@@ -36,7 +36,6 @@ if __name__=="__main__":
 
                         addP = True
                         if checkExist:
-                            # x = select(Tables.File.__table__).where(Tables.File.path == p).one()
                             x = session.execute(
                                 select(Tables.File.id).
                                 where(Tables.File.path==p)

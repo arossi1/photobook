@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, 
     QGridLayout, QWidget, QListWidget, QListWidgetItem,
     QDockWidget, QFormLayout, QLineEdit, QPushButton,
-    QTextEdit, QHBoxLayout, QFileDialog
+    QTextEdit, QHBoxLayout, QFileDialog, QProgressDialog
 )
 
 from PyQt5.QtGui import QPixmap
@@ -19,6 +19,8 @@ from PIL import Image as PilImage
 
 import math
 import os
+import shutil
+import traceback
 from contextlib import contextmanager
 
 ################################################################################
@@ -57,13 +59,39 @@ class ImageReviewGui(QMainWindow):
         self.setWindowTitle("Image Review")
         self.resize(800,600)
 
-        self.docked = QDockWidget("Query Form", self)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.docked)
-        self.dockedWidget = QWidget(self)
-        self.docked.setWidget(self.dockedWidget)
-        formLayout = QFormLayout()
-        self.dockedWidget.setLayout(formLayout)
+        dwQueryForm = QDockWidget("Query", self)
+        self.addDockWidget(Qt.LeftDockWidgetArea, dwQueryForm)
+        wQueryForm = QWidget(self)
+        dwQueryForm.setWidget(wQueryForm)
+        flQuery = QFormLayout()
+        wQueryForm.setLayout(flQuery)
         
+        dwImageManip = QDockWidget("Manipulation", self)
+        self.addDockWidget(Qt.LeftDockWidgetArea, dwImageManip)
+        wImageManip = QWidget(self)
+        dwImageManip.setWidget(wImageManip)
+        flImageManip = QFormLayout()
+        wImageManip.setLayout(flImageManip)
+
+        dwSaveDir = QDockWidget("Save Selected", self)
+        self.addDockWidget(Qt.LeftDockWidgetArea, dwSaveDir)
+        wSaveDir = QWidget(self)
+        dwSaveDir.setWidget(wSaveDir)
+        flSaveDir = QFormLayout()
+        wSaveDir.setLayout(flSaveDir)
+
+        self.dwImages = QDockWidget("Images", self)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dwImages)
+        wImages = QWidget(self)
+        self.dwImages.setWidget(wImages)
+        flImages = QFormLayout()
+        wImages.setLayout(flImages)
+
+        self.tabifyDockWidget(dwQueryForm, dwImageManip)
+        self.tabifyDockWidget(dwImageManip, dwSaveDir)
+        dwQueryForm.raise_()
+
+
         self.startDate = QLineEdit("2020-07-01")
         self.endDate = QLineEdit("2020-08-01")
         self.pbQuery = QPushButton("Query")
@@ -86,20 +114,27 @@ class ImageReviewGui(QMainWindow):
         self.rotateSetting = 0
 
         self.saveDir = QLineEdit("")
+        self.pbSaveBrowse = QPushButton("...")
+        self.pbSaveBrowse.clicked.connect(self.saveBrowseSlot)
+
+        laySaveDir = QHBoxLayout()
+        laySaveDir.addWidget(QLabel("Directory:"))
+        laySaveDir.addWidget(self.saveDir)
+        laySaveDir.addWidget(self.pbSaveBrowse)
+
         self.pbSaveSelected = QPushButton("Save Selected")
         self.pbSaveSelected.clicked.connect(self.saveSelectedSlot)
 
-        self.pbSaveBrowse = QPushButton("Browse...")
-        self.pbSaveBrowse.clicked.connect(self.saveBrowseSlot)
+        flQuery.addRow("Start Date:", self.startDate)
+        flQuery.addRow("End Date:", self.endDate)
+        flQuery.addRow(self.pbQuery)
 
-        formLayout.addRow("Start Date:", self.startDate)
-        formLayout.addRow("End Date:", self.endDate)
-        formLayout.addRow(self.pbQuery)
-        formLayout.addRow(layRotate)
-        formLayout.addRow("Directory:", self.saveDir)
-        formLayout.addRow(self.pbSaveBrowse)
-        formLayout.addRow(self.pbSaveSelected)
-        formLayout.addRow(self.listWidget)
+        flImageManip.addRow(layRotate)
+
+        flSaveDir.addRow(laySaveDir)
+        flSaveDir.addRow(self.pbSaveSelected)
+        
+        flImages.addRow(self.listWidget)
 
         self.imageDisplay = QLabel()
         self.setCentralWidget(self.imageDisplay)
@@ -107,20 +142,26 @@ class ImageReviewGui(QMainWindow):
         self.a = AdamAPI(dbPath)
 
     def querySlot(self, b):
-        with waitCursorContext():
-            self.listWidget.clear()
+        try:
+            with waitCursorContext():
+                self.listWidget.clear()
 
-            lwis = []
-            for im in self.a.queryDateRange(self.startDate.text(), self.endDate.text()):
-                dateStr = im.date_time.strftime("%Y/%m/%d %I:%M:%S %p [%A]")
-                lwi = QListWidgetItem(dateStr)
-                lwi.setCheckState(Qt.Unchecked)
-                lwi.image = im
-                lwis.append(lwi)
-            
-            lwis.sort(key=lambda x: x.image.date_time)
-            for lwi in lwis:
-                self.listWidget.addItem(lwi)
+                lwis = []
+                for im in self.a.queryDateRange(self.startDate.text(), self.endDate.text()):
+                    dateStr = im.date_time.strftime("%Y/%m/%d %I:%M:%S %p [%A]")
+                    lwi = QListWidgetItem(dateStr)
+                    lwi.setCheckState(Qt.Unchecked)
+                    lwi.image = im
+                    lwis.append(lwi)
+                
+                lwis.sort(key=lambda x: x.image.date_time)
+                for lwi in lwis:
+                    self.listWidget.addItem(lwi)
+
+                self.dwImages.setWindowTitle(f"Images [{len(lwis)}]")
+        except:
+            print()        
+            traceback.print_exc()
 
     def rotateRightSlot(self, b):
         self.rotateSetting += 90
@@ -138,28 +179,70 @@ class ImageReviewGui(QMainWindow):
         self.listItemChangedSlot()
 
     def saveBrowseSlot(self, b):
-        ret = QFileDialog.getExistingDirectory()
-        if os.path.isdir(ret):
-            self.saveDir.setText(ret)
+        try:
+            ret = QFileDialog.getExistingDirectory()
+            if os.path.isdir(ret):
+                self.saveDir.setText(ret)
+        except:
+            print()        
+            traceback.print_exc()
 
     def saveSelectedSlot(self, b):
-        for i in range(self.listWidget.count()):
-            lwi = self.listWidget.item(i)
-            if lwi.checkState() == Qt.Checked:
-                print(lwi.image.path)
+        try:
+            imagesToCopy = []
+            for i in range(self.listWidget.count()):
+                lwi = self.listWidget.item(i)
+                if lwi.checkState() == Qt.Checked:
+                    imagesToCopy.append(lwi.image)
+
+            pd = QProgressDialog("Copying files...", "Abort", 0, len(imagesToCopy), self)
+            pd.setWindowModality(Qt.WindowModal)
+
+            saveDir = str(self.saveDir.text())
+
+            for i,im in enumerate(imagesToCopy):
+                pd.setValue(i)
+                if pd.wasCanceled():
+                    break
+
+                opath = os.path.join(
+                    os.path.join(
+                        saveDir,
+                        f"{im.date_time.year}",
+                        f"{im.date_time.month:02d}"
+                    ),
+                    os.path.basename(im.path)
+                )
+                os.makedirs(os.path.dirname(opath), exist_ok=True)
+                shutil.copy2(im.path, opath)
+
+            pd.setValue(len(imagesToCopy))
+
+        except:
+            print()        
+            traceback.print_exc()
+
 
     def listItemChangedSlot(self, current=None, previous=None):
-        with waitCursorContext():
-            if current is not None:
-                self.rotateSetting = 0
+        current = None
+        try:
+            with waitCursorContext():
+                if current is not None:
+                    self.rotateSetting = 0
 
-            current = self.listWidget.currentItem()
+                current = self.listWidget.currentItem()
+                if current is not None:
+                    w = self.imageDisplay.size().width()
+                    h = self.imageDisplay.size().height()
+                    im = current.image.getImageData(w,h, self.rotateSetting)
+                    self.pm = pil2pixmap(im)
+                    self.imageDisplay.setPixmap(self.pm)
+        except:
+            print()
+            traceback.print_exc()
             if current is not None:
-                w = self.imageDisplay.size().width()
-                h = self.imageDisplay.size().height()
-                im = current.image.getImageData(w,h, self.rotateSetting)
-                self.pm = pil2pixmap(im)
-                self.imageDisplay.setPixmap(self.pm)
+                print(current.image)
+
 
 
 ################################################################################

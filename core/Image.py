@@ -33,6 +33,16 @@ class Image:
         self.bands = bands
         self.date_time = date_time
 
+    def __repr__(self):
+        return \
+        f"path: {self.path}\n"
+        f"size: {self.size}\n"
+        f"modified_date_time: {self.modified_date_time}\n"
+        f"width: {self.width}\n"
+        f"height: {self.height}\n"
+        f"bands: {self.bands}\n"
+        f"date_time: {self.date_time}\n"
+
     @staticmethod
     def fromDb(im):
         return Image(
