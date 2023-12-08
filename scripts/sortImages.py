@@ -26,10 +26,7 @@ if __name__=="__main__":
         outputDirUnknownFormat = os.path.join(outputDir, "unknownFormat")
         outputDirErrors = os.path.join(outputDir, "errors")
 
-        numFiles = 0
-        for dn,dns,fns in os.walk(inputDir):
-            numFiles += len(fns)
-
+        numFiles = sum(len(fns) for _,_,fns in os.walk(inputDir))
         pb = tqdm(desc="Sorting Images", total=numFiles)
 
         for idir,dirnames,filenames in os.walk(inputDir):
@@ -41,7 +38,6 @@ if __name__=="__main__":
                         dt = getImageAttributes(ipath)[4]
                         if dt is None:
                             logger.info(f"unable to obtain date for: {ipath}, moving to 'unknown date' directory")
-                            # dt = datetime.fromtimestamp(os.stat(ipath).st_mtime)
                             odir = outputDirUnknownDate
                         else:
                             odir = os.path.join(outputDir, f"{dt.year}", f"{dt.month:02d}", f"{dt.day:02d}")
