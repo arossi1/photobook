@@ -19,8 +19,20 @@ from PIL import Image as PilImage
 
 import math
 import os
+from contextlib import contextmanager
 
+################################################################################
+@contextmanager
+def waitCursorContext():
+    QApplication.setOverrideCursor(Qt.WaitCursor)
+    try:
+        yield
+    except:
+        raise
+    finally:
+        QApplication.restoreOverrideCursor()
 
+################################################################################
 def pil2pixmap(im):
 
     if im.mode == "RGB":
@@ -37,10 +49,10 @@ def pil2pixmap(im):
     pixmap = QtGui.QPixmap.fromImage(qim)
     return pixmap
 
-
+################################################################################
 class ImageReviewGui(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, dbPath):
         super().__init__()
         self.setWindowTitle("Image Review")
         self.resize(800,600)
@@ -62,14 +74,14 @@ class ImageReviewGui(QMainWindow):
         self.pbRotateRight = QPushButton("Rotate +90")
         self.pbRotateRight.clicked.connect(self.rotateRightSlot)
 
-        self.pbFlip = QPushButton("Flip 180")
-        self.pbFlip.clicked.connect(self.flipSlot)
+        self.pbRotate180 = QPushButton("Rotate 180")
+        self.pbRotate180.clicked.connect(self.flipSlot)
 
         self.pbRotateLeft = QPushButton("Rotate -90")
         self.pbRotateLeft.clicked.connect(self.rotateLeftSlot)
         layRotate = QHBoxLayout()
         layRotate.addWidget(self.pbRotateLeft)
-        layRotate.addWidget(self.pbFlip)
+        layRotate.addWidget(self.pbRotate180)
         layRotate.addWidget(self.pbRotateRight)
         self.rotateSetting = 0
 
@@ -82,18 +94,15 @@ class ImageReviewGui(QMainWindow):
         self.imageDisplay = QLabel()
         self.setCentralWidget(self.imageDisplay)
 
-        self.a = AdamAPI(r"<path>")
+        self.a = AdamAPI(dbPath)
 
     def querySlot(self, b):
-        QApplication.setOverrideCursor(Qt.WaitCursor)
-        try:
+        with waitCursorContext():
             self.listWidget.clear()
 
             lwis = []
             for im in self.a.queryDateRange(self.startDate.text(), self.endDate.text()):
-                dateStr = im.date_time.strftime("%Y/%m/%d %I:%M:%S") + \
-                    im.date_time.strftime("%p").lower() + \
-                    im.date_time.strftime(" [%A]")
+                dateStr = im.date_time.strftime("%Y/%m/%d %I:%M:%S %p [%A]")
                 lwi = QListWidgetItem(dateStr)
                 lwi.image = im
                 lwis.append(lwi)
@@ -101,10 +110,6 @@ class ImageReviewGui(QMainWindow):
             lwis.sort(key=lambda x: x.image.date_time)
             for lwi in lwis:
                 self.listWidget.addItem(lwi)
-        except:
-            raise
-        finally:
-            QApplication.restoreOverrideCursor()
 
     def rotateRightSlot(self, b):
         self.rotateSetting += 90
@@ -122,27 +127,23 @@ class ImageReviewGui(QMainWindow):
         self.listItemChangedSlot()
 
     def listItemChangedSlot(self, current=None, previous=None):
-        QApplication.setOverrideCursor(Qt.WaitCursor)
+        with waitCursorContext():
+            if current is not None:
+                self.rotateSetting = 0
 
-        if current is not None:
-            self.rotateSetting = 0
-
-        current = self.listWidget.currentItem()
-        try:
+            current = self.listWidget.currentItem()
             if current is not None:
                 w = self.imageDisplay.size().width()
                 h = self.imageDisplay.size().height()
                 im = current.image.getImageData(w,h, self.rotateSetting)
                 self.pm = pil2pixmap(im)
                 self.imageDisplay.setPixmap(self.pm)
-        except:
-            raise
-        finally:
-            QApplication.restoreOverrideCursor()
 
+
+################################################################################
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    irg = ImageReviewGui()
+    irg = ImageReviewGui(sys.argv[1])
     irg.show()
     sys.exit(app.exec_())
 

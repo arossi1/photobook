@@ -5,7 +5,11 @@ from sqlalchemy import exists
 from PIL import Image
 from PIL.ExifTags import TAGS
 import numpy as np
-import pyheif
+
+# import pyheif
+from pillow_heif import register_heif_opener
+register_heif_opener()
+
 
 import sys, datetime, logging
 import hashlib
@@ -31,7 +35,7 @@ def parseExifData(exifdata):
 def getImageAttributes(imagePath):
 
     # https://github.com/carsales/pyheif
-    if imagePath.lower().endswith(".heic"):
+    if False: #imagePath.lower().endswith(".heic"):
         heif_file = pyheif.read(imagePath)
 
         ret = [heif_file.size[0], heif_file.size[1], len(heif_file.mode), None]

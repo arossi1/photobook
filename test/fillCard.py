@@ -10,10 +10,12 @@ from tqdm import tqdm
 
 import shutil
 import os
+import sys
+import datetime
 
-# from PIL import Image
-# from pillow_heif import register_heif_opener
-# register_heif_opener()
+from PIL import Image as PILImage
+from pillow_heif import register_heif_opener
+register_heif_opener()
 
 
 
@@ -45,9 +47,26 @@ class AdamAPI:
                 f"{d}-{month}-01",
                 f"{d}-{month}-31"
             )
-        return res
+        return 
+    
+    @staticmethod
+    def inTimeWindow(timestamps, newTimestamp, minuteWindow):
+        minWin = datetime.timedelta(minutes=minuteWindow)
+        return any(
+            (ts - minWin) < newTimestamp < (ts + minWin)
+            for ts in timestamps
+        )
 
-    def queryDateRangeRandomSizeLimit(self, startDate, endDate, desiredSizeBytes):
+    def queryDateRangeRandomSizeLimit(
+        self,
+        startDate, 
+        endDate, 
+        desiredSizeBytes,
+        timestamps=None,
+        minuteWindow=5):
+
+        if timestamps is None:
+            timestamps = []
         res = []
         sz = 0
         with Tables.Db.Session() as s:
@@ -73,13 +92,23 @@ class AdamAPI:
             #     ).filter(
             #         func.date(Tables.FileAttributes.modified_date_time) >= startDate
             #     ):
-                if sz+x.FileAttributes.size > desiredSizeBytes:
-                    break
-                sz += x.FileAttributes.size
-                res.append(Image.fromDb(x))
+                image = Image.fromDb(x)
+
+                if not AdamAPI.inTimeWindow(timestamps, image.date_time, 5):
+                    timestamps.append(image.date_time)
+                    if sz+x.FileAttributes.size > desiredSizeBytes:
+                        break
+                    sz += x.FileAttributes.size
+                    res.append(image)
         return res
 
-    def queryDateRangeRandom(self, startDate, endDate):
+    def queryDateRangeRandom(
+        self,
+        startDate,
+        endDate,
+        timestamps=None,
+        minuteWindow=5):
+        
         with Tables.Db.Session() as s:
             for x in s.query(
                     Tables.FileAttributes,
@@ -99,23 +128,25 @@ class AdamAPI:
 
 
 
-def copyImage(imagePath, destDir):
-    if imagePath.lower().endswith(".heic"):
-        heif_file = Image.open(imagePath)
+def copyImage(im : Image, destDir : str):
+    if im.path.lower().endswith(".heic"):
+        heif_file = PILImage.open(im.path)
 
         heif_file.save(
             os.path.join(
                 destDir,
-                os.path.splitext(os.path.basename(imagePath))[0] + ".jpg"
+                os.path.splitext(os.path.basename(im.path))[0] + ".jpg"
             ),
             "JPEG"
         )
 
     else:
-        shutil.copy2(imagePath, destDir)
+        shutil.copy2(im.path, destDir)
 
 if __name__=="__main__":
-    a = AdamAPI(r"<win db path>")
+    a = AdamAPI(sys.argv[1])
+    DEST_DIR = sys.argv[2]
+    dryRun = False
 
     KB = 1024
     MB = KB*KB
@@ -123,23 +154,33 @@ if __name__=="__main__":
 
     yearStart = 2016
     yearEnd = 2023
-    month = 11
+    month = 12
+    WINDOW_MIN = 5
+
+    if not dryRun:
+        if os.path.exists(DEST_DIR):
+            print(f"Deleting existing images: {DEST_DIR}")
+            shutil.rmtree(DEST_DIR)
+        os.makedirs(DEST_DIR)
+
+    print("Copying images...")
     numYears = yearEnd - yearStart
     cardSizeBytes = 1*GB
     szPerYear = cardSizeBytes / numYears
     images = []
+    timestamps = []
     for y in range(yearStart,yearEnd):
-        images += a.queryDateRangeRandomSizeLimit(f"{y}-{month}-01", f"{y}-{month}-31", szPerYear)
+        images += a.queryDateRangeRandomSizeLimit(
+            f"{y}-{month}-01", f"{y}-{month}-31", szPerYear, timestamps, WINDOW_MIN)
 
-    breakpoint()
-    images[0].getImageData(200, 300, 90)
+    for image in tqdm(images):
+        if dryRun:
+            print(image.path)
+        else:
+            copyImage(image, DEST_DIR)
 
-    # DEST_DIR = r""
-    # os.makedirs(DEST_DIR, exist_ok=True)
-
-    # # for imagePath in tqdm(images):
-    # #     copyImage(imagePath, DEST_DIR)
-
-    # for imagePath in a.queryDateRangeRandom(f"{yearStart}-{month}-01", f"{yearEnd}-{month}-31"):
-    #     print(imagePath)
-    #     copyImage(imagePath, DEST_DIR)
+    for image in a.queryDateRangeRandom(
+        f"{yearEnd}-{month}-01", f"{yearEnd}-{month}-31", timestamps, WINDOW_MIN):
+        print(image.path)
+        if not dryRun:
+            copyImage(image, DEST_DIR)
