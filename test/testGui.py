@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, 
     QGridLayout, QWidget, QListWidget, QListWidgetItem,
     QDockWidget, QFormLayout, QLineEdit, QPushButton,
-    QTextEdit, QHBoxLayout
+    QTextEdit, QHBoxLayout, QFileDialog
 )
 
 from PyQt5.QtGui import QPixmap
@@ -85,10 +85,20 @@ class ImageReviewGui(QMainWindow):
         layRotate.addWidget(self.pbRotateRight)
         self.rotateSetting = 0
 
+        self.saveDir = QLineEdit("")
+        self.pbSaveSelected = QPushButton("Save Selected")
+        self.pbSaveSelected.clicked.connect(self.saveSelectedSlot)
+
+        self.pbSaveBrowse = QPushButton("Browse...")
+        self.pbSaveBrowse.clicked.connect(self.saveBrowseSlot)
+
         formLayout.addRow("Start Date:", self.startDate)
         formLayout.addRow("End Date:", self.endDate)
         formLayout.addRow(self.pbQuery)
         formLayout.addRow(layRotate)
+        formLayout.addRow("Directory:", self.saveDir)
+        formLayout.addRow(self.pbSaveBrowse)
+        formLayout.addRow(self.pbSaveSelected)
         formLayout.addRow(self.listWidget)
 
         self.imageDisplay = QLabel()
@@ -104,6 +114,7 @@ class ImageReviewGui(QMainWindow):
             for im in self.a.queryDateRange(self.startDate.text(), self.endDate.text()):
                 dateStr = im.date_time.strftime("%Y/%m/%d %I:%M:%S %p [%A]")
                 lwi = QListWidgetItem(dateStr)
+                lwi.setCheckState(Qt.Unchecked)
                 lwi.image = im
                 lwis.append(lwi)
             
@@ -125,6 +136,17 @@ class ImageReviewGui(QMainWindow):
         self.rotateSetting += 180
         self.rotateSetting = self.rotateSetting % 360
         self.listItemChangedSlot()
+
+    def saveBrowseSlot(self, b):
+        ret = QFileDialog.getExistingDirectory()
+        if os.path.isdir(ret):
+            self.saveDir.setText(ret)
+
+    def saveSelectedSlot(self, b):
+        for i in range(self.listWidget.count()):
+            lwi = self.listWidget.item(i)
+            if lwi.checkState() == Qt.Checked:
+                print(lwi.image.path)
 
     def listItemChangedSlot(self, current=None, previous=None):
         with waitCursorContext():
