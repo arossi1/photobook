@@ -7,7 +7,8 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QLabel, 
     QGridLayout, QWidget, QListWidget, QListWidgetItem,
     QDockWidget, QFormLayout, QLineEdit, QPushButton,
-    QTextEdit, QHBoxLayout, QFileDialog, QProgressDialog
+    QTextEdit, QHBoxLayout, QFileDialog, QProgressDialog,
+    QMessageBox
 )
 
 from PyQt5.QtGui import QPixmap
@@ -197,6 +198,7 @@ class ImageReviewGui(QMainWindow):
 
             pd = QProgressDialog("Copying files...", "Abort", 0, len(imagesToCopy), self)
             pd.setWindowModality(Qt.WindowModal)
+            pd.show()
 
             saveDir = str(self.saveDir.text())
 
@@ -217,6 +219,12 @@ class ImageReviewGui(QMainWindow):
                 shutil.copy2(im.path, opath)
 
             pd.setValue(len(imagesToCopy))
+
+            QMessageBox.information(
+                self,
+                "Done",
+                f"Copied {len(imagesToCopy)} images!"
+            )
 
         except:
             print()        
